@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <property name="LOG_FILE" value="${LOG_FILE:-${LOG_PATH:-${LOG_TEMP:-${java.io.tmpdir:-/tmp}}}/spring}"/>
+
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>combined</pattern>
+            <charset>${CONSOLE_LOG_CHARSET}</charset>
+        </encoder>
+    </appender>
+
+    <appender name="CONSOLE_JSON" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="net.logstash.logback.encoder.AccessEventCompositeJsonEncoder">
+            <providers>
+                <timestamp>
+                    <fieldName>timestamp</fieldName>
+                </timestamp>
+                <method/>
+                <statusCode/>
+                <elapsedTime/>
+                <protocol/>
+                <remoteHost/>
+                <remoteUser/>
+                <contentLength/>
+                <accessMessage/>
+                <requestHeaders>
+                    <fieldName>request_headers</fieldName>
+                </requestHeaders>
+                <responseHeaders>
+                    <fieldName>response_headers</fieldName>
+                    <filter>
+                        <exclude>logId</exclude>
+                        <exclude>traceId</exclude>
+                        <exclude>spanId</exclude>
+                        <exclude>parentId</exclude>
+                    </filter>
+                </responseHeaders>
+                <pattern>
+                    <omitEmptyFields>true</omitEmptyFields>
+                    <pattern>
+                        {
+                        "type":"access",
+                        "pid":"#asLong{${PID}}",
+                        "hostname":"${HOSTNAME}",
+                        "requested_uri":"%requestURI%queryString",
+                        "logId":"%replace(%responseHeader{logId}){'null',''}",
+                        "traceId":"%replace(%responseHeader{traceId}){'null',''}",
+                        "spanId":"%replace(%responseHeader{spanId}){'null',''}",
+                        "parentId":"%replace(%responseHeader{parentId}){'null',''}",
+                        "thread_name":"%threadName",
+                        "request_content":"#tryJson{%requestContent}",
+                        "response_content":"#tryJson{%responseContent}"
+                        }
+                    </pattern>
+                </pattern>
+            </providers>
+        </encoder>
+    </appender>
+
+    <if condition="isDefined(&quot;LOGGING_FILE&quot;)">
+        <then>
+            <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+                <encoder>
+                    <pattern>combined</pattern>
+                    <charset>${FILE_LOG_CHARSET}</charset>
+                </encoder>
+                <file>${LOG_FILE}.access.log</file>
+                <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+                    <fileNamePattern>${LOG_FILE}.access.log.%d{yyyy-MM-dd_HH}.%i.gz</fileNamePattern>
+                    <cleanHistoryOnStart>false</cleanHistoryOnStart>
+                    <maxFileSize>1GB</maxFileSize>
+                    <totalSizeCap>0</totalSizeCap>
+                    <maxHistory>0</maxHistory>
+                </rollingPolicy>
+            </appender>
+        </then>
+    </if>
+
+    <if condition="isDefined(&quot;LOGGING_FILE_JSON&quot;)">
+        <then>
+            <appender name="FILE_JSON" class="ch.qos.logback.core.rolling.RollingFileAppender">
+                <encoder class="net.logstash.logback.encoder.AccessEventCompositeJsonEncoder">
+                    <providers>
+                        <timestamp>
+                            <fieldName>timestamp</fieldName>
+                        </timestamp>
+                        <method/>
+                        <statusCode/>
+                        <elapsedTime/>
+                        <protocol/>
+                        <remoteHost/>
+                        <remoteUser/>
+                        <contentLength/>
+                        <accessMessage/>
+                        <requestHeaders>
+                            <fieldName>request_headers</fieldName>
+                        </requestHeaders>
+                        <responseHeaders>
+                            <fieldName>response_headers</fieldName>
+                            <filter>
+                                <exclude>logId</exclude>
+                                <exclude>traceId</exclude>
+                                <exclude>spanId</exclude>
+                                <exclude>parentId</exclude>
+                            </filter>
+                        </responseHeaders>
+                        <pattern>
+                            <omitEmptyFields>true</omitEmptyFields>
+                            <pattern>
+                                {
+                                "type":"access",
+                                "pid":"#asLong{${PID}}",
+                                "hostname":"${HOSTNAME}",
+                                "requested_uri":"%requestURI%queryString",
+                                "logId":"%replace(%responseHeader{logId}){'null',''}",
+                                "traceId":"%replace(%responseHeader{traceId}){'null',''}",
+                                "spanId":"%replace(%responseHeader{spanId}){'null',''}",
+                                "parentId":"%replace(%responseHeader{parentId}){'null',''}",
+                                "thread_name":"%threadName",
+                                "request_content":"%.-2048requestContent",
+                                "response_content":"%.-2048responseContent"
+                                }
+                            </pattern>
+                        </pattern>
+                    </providers>
+                </encoder>
+                <file>${LOG_FILE}.access.log</file>
+                <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+                    <fileNamePattern>${LOG_FILE}.access.log.%d{yyyy-MM-dd_HH}.%i.gz</fileNamePattern>
+                    <cleanHistoryOnStart>false</cleanHistoryOnStart>
+                    <maxFileSize>1GB</maxFileSize>
+                    <totalSizeCap>0</totalSizeCap>
+                    <maxHistory>0</maxHistory>
+                </rollingPolicy>
+            </appender>
+        </then>
+    </if>
+
+    <appender name="ASYNC" class="net.logstash.logback.appender.AccessEventAsyncDisruptorAppender">
+        <if condition="isDefined(&quot;LOGGING_CONSOLE&quot;)">
+            <then>
+                <appender-ref ref="CONSOLE"/>
+            </then>
+        </if>
+        <if condition="isDefined(&quot;LOGGING_CONSOLE_JSON&quot;)">
+            <then>
+                <appender-ref ref="CONSOLE_JSON"/>
+            </then>
+        </if>
+        <if condition="isDefined(&quot;LOGGING_FILE&quot;)">
+            <then>
+                <appender-ref ref="FILE"/>
+            </then>
+        </if>
+        <if condition="isDefined(&quot;LOGGING_FILE_JSON&quot;)">
+            <then>
+                <appender-ref ref="FILE_JSON"/>
+            </then>
+        </if>
+    </appender>
+
+    <appender-ref ref="ASYNC"/>
+</configuration>

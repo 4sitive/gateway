@@ -46,7 +46,7 @@ management:
 spring:
   profiles:
     group:
-      default: LOGGING_CONSOLE
+      default: LOGGING_CONSOLE_JSON
   messages:
     use-code-as-default-message: true
   application:
