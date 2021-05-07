@@ -1,13 +1,11 @@
-package com.befour.gateway;
+package com.foursitive.gateway;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
-public class GatewayApplication {
-
+public class Application {
     public static void main(String[] args) {
-        SpringApplication.run(GatewayApplication.class, args);
+        SpringApplication.run(Application.class, args);
     }
-
 }
