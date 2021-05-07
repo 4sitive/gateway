@@ -1,0 +1,110 @@
+server:
+  port: 8080
+  error:
+    include-exception: true
+  shutdown: graceful
+  max-http-header-size: 1MB
+  forward-headers-strategy: native
+  netty:
+    connection-timeout: 5S
+    validate-headers: false
+
+logging:
+  file:
+    path: ${log.directory:.}
+    name: ${logging.file.path}/${service.name:${spring.application.name}}
+  pattern:
+    level: '%5p [${spring.application.name:},%X{traceId:-},%X{spanId:-},%X{parentId:-},%mdc{req.method},%mdc{req.requestURI}%replace(?%mdc{req.queryString}){''^[?]$'',''''}]'
+  level:
+    org.springframework.web: debug
+    org.springframework.security: debug
+    org.springframework.cloud.commons.util: trace
+    org.springframework.cloud.loadbalancer: debug
+    org.springframework.cloud.gateway.filter.NettyRoutingFilter: trace
+    org.springframework.boot.autoconfigure.web.reactive.error.AbstractErrorWebExceptionHandler: debug
+    reactor.netty.resources.DefaultPooledConnectionProvider: info
+
+management:
+  server:
+    port: 8081
+  metrics:
+    tags:
+      application: ${spring.application.name}
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: always
+    logfile:
+      external-file: ${logging.file.name}.service.log
+    env:
+      post:
+        enabled: true
+    shutdown:
+      enabled: true
+  endpoints:
+    web:
+      base-path: /
+      exposure:
+        include: '*'
+  health:
+    redis:
+      enabled: false
+
+spring:
+  profiles:
+    group:
+      default: LOGGING_CONSOLE
+  messages:
+    use-code-as-default-message: true
+  application:
+    name: gateway
+  codec:
+    max-in-memory-size: -1
+  redis:
+    timeout: 2S
+    lettuce:
+      pool:
+        max-active: 10
+        max-idle: 10
+        min-idle: 10
+  cloud:
+    loadbalancer:
+      health-check:
+        path:
+          default: ''
+        refetch-instances: true
+    inetutils:
+      timeout-seconds: 2147483647
+    gateway:
+      default-filters:
+        - name: Retry
+          args:
+            retries: 1
+            series: ''
+            methods: '#{T(org.springframework.http.HttpMethod).values()}'
+            exceptions:
+              - java.io.IOException
+      discovery:
+        locator:
+          enabled: true
+          lower-case-service-id: true
+      forwarded:
+        enabled: false
+      httpclient:
+        connect-timeout: 2000
+        response-timeout: 15S
+        pool:
+          max-idle-time: 10M
+          max-life-time: 30M
+      routes:
+        - id: account
+          uri: http://host.docker.internal:18080
+          predicates:
+            - Host=*account.4sitive.com,*account.4sitive.com:8080
+    discovery:
+      blocking:
+        enabled: false
+  sleuth:
+    sampler:
+      probability: 1.0
