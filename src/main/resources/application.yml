@@ -11,18 +11,10 @@ server:
 
 logging:
   file:
-    path: ${log.directory:.}
-    name: ${logging.file.path}/${service.name:${spring.application.name}}
+    path: ${LOG_PATH:.}
+    name: ${logging.file.path}/${spring.application.name}
   pattern:
     level: '%5p [${spring.application.name:},%X{traceId:-},%X{spanId:-},%X{parentId:-},%mdc{req.method},%mdc{req.requestURI}%replace(?%mdc{req.queryString}){''^[?]$'',''''}]'
-  level:
-    org.springframework.web: debug
-    org.springframework.security: debug
-    org.springframework.cloud.commons.util: trace
-    org.springframework.cloud.loadbalancer: debug
-    org.springframework.cloud.gateway.filter.NettyRoutingFilter: trace
-    org.springframework.boot.autoconfigure.web.reactive.error.AbstractErrorWebExceptionHandler: debug
-    reactor.netty.resources.DefaultPooledConnectionProvider: info
 
 management:
   server:
