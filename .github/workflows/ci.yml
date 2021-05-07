@@ -1,0 +1,28 @@
+name: Java CI with Maven
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+    runs-on: [ self-hosted ]
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up JDK 11
+        uses: actions/setup-java@v2
+        with:
+          java-version: '11'
+          distribution: 'adopt'
+      - name: Build with Maven
+        run: mvn -B spring-boot:build-image --file pom.xml -Dspring-boot.build-image.imageName=ghcr.io/4sitive/gateway
+  deploy:
+    needs: build
+    runs-on: [ self-hosted ]
+    steps:
+      - name: Deploy with Docker
+        run: |
+          docker ps -q --filter "name=gateway" | grep -q . && docker stop gateway && docker rm -fv gateway
+          docker run -d -p 8080:8080 --name gateway --restart always ghcr.io/4sitive/gateway
