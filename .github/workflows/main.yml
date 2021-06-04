@@ -21,7 +21,6 @@ jobs:
     steps:
       - name: Deploy with Docker
         env:
-          SERVER_SSL_KEYSTORE: classpath:keystore.pfx
-          SERVER_SSL_KEYSTOREPASSWORD: ${{secrets.KEYSTORE_PASSWORD}}
+          KEYSTORE_PASSWORD: ${{secrets.KEYSTORE_PASSWORD}}
         run: |
           docker-compose up --no-deps --build --force-recreate --detach
