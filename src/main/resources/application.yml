@@ -46,7 +46,7 @@ management:
 spring:
   profiles:
     group:
-      default: LOGGING_CONSOLE_JSON
+      default: LOGGING_CONSOLE
   messages:
     use-code-as-default-message: true
   application:
@@ -89,11 +89,16 @@ spring:
         pool:
           max-idle-time: 10M
           max-life-time: 30M
+          eviction-interval: 5S
       routes:
         - id: account
           uri: http://host.docker.internal:18080
           predicates:
             - Host=*account.4sitive.com,*account.4sitive.com:8080
+        - id: api
+          uri: http://host.docker.internal:28080
+          predicates:
+            - Host=*api.4sitive.com,*api.4sitive.com:8080
     discovery:
       blocking:
         enabled: false

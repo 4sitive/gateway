@@ -2,10 +2,6 @@ name: Java CI with Maven
 
 on:
   workflow_dispatch:
-  push:
-    branches: [ master ]
-  pull_request:
-    branches: [ master ]
 
 jobs:
   build:
@@ -24,6 +20,8 @@ jobs:
     runs-on: [ self-hosted ]
     steps:
       - name: Deploy with Docker
+        env:
+          SERVER_SSL_KEYSTORE: classpath:keystore.pfx
+          SERVER_SSL_KEYSTOREPASSWORD: ${{secrets.KEYSTORE_PASSWORD}}
         run: |
-          docker ps -q --filter "name=gateway" | grep -q . && docker stop gateway && docker rm -fv gateway
-          docker run -d -p 8080:8080 -p 8081:8081 --name gateway --restart always ghcr.io/4sitive/gateway
+          docker-compose up --no-deps --build --force-recreate --detach

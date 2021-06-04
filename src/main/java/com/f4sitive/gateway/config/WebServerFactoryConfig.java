@@ -1,4 +1,4 @@
-package com.foursitive.gateway.config;
+package com.f4sitive.gateway.config;
 
 import ch.qos.logback.access.AccessConstants;
 import ch.qos.logback.access.joran.JoranConfigurator;

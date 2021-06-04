@@ -1,4 +1,4 @@
-package com.foursitive.gateway;
+package com.f4sitive.gateway;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;

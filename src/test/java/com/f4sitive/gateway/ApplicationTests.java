@@ -1,4 +1,4 @@
-package com.foursitive.gateway;
+package com.f4sitive.gateway;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
