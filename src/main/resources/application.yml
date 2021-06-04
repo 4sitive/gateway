@@ -19,6 +19,8 @@ logging:
 management:
   server:
     port: 8081
+    ssl:
+      enabled: false
   metrics:
     tags:
       application: ${spring.application.name}
