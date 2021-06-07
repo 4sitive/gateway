@@ -107,3 +107,6 @@ spring:
   sleuth:
     sampler:
       probability: 1.0
+springfox:
+  documentation:
+    enabled: false
