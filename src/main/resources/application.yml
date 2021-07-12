@@ -110,3 +110,10 @@ spring:
 springfox:
   documentation:
     enabled: false
+cors:
+  mapping:
+    '[/**]':
+      allowed-origin-patterns: '*'
+      allow-credentials: true
+      allowed-headers: '*'
+      allowed-methods: '*'
