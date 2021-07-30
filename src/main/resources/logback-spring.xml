@@ -46,7 +46,8 @@
                         "type":"service",
                         "pid":"#asLong{${PID}}",
                         "hostname":"${HOSTNAME}",
-                        "requested_uri":"%mdc{req.requestURI}%replace(?%mdc{req.queryString}){'^[?]$',''}",
+                        "requested_uri":"%mdc{req.requestURI}",
+                        "query_string":"%mdc{req.queryString}",
                         "traceId":"%mdc{traceId}",
                         "spanId":"%mdc{spanId}",
                         "parentId":"%mdc{parentId}",
@@ -57,23 +58,6 @@
             </providers>
         </encoder>
     </appender>
-
-    <springProfile name="LOGGING_FILE">
-        <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-            <encoder>
-                <pattern>${FILE_LOG_PATTERN}</pattern>
-                <charset>${FILE_LOG_CHARSET}</charset>
-            </encoder>
-            <file>${LOG_FILE}.service.log</file>
-            <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
-                <fileNamePattern>${LOG_FILE}.service.log.%d{yyyy-MM-dd_HH}.%i.gz</fileNamePattern>
-                <cleanHistoryOnStart>false</cleanHistoryOnStart>
-                <maxFileSize>1GB</maxFileSize>
-                <totalSizeCap>0</totalSizeCap>
-                <maxHistory>0</maxHistory>
-            </rollingPolicy>
-        </appender>
-    </springProfile>
 
     <springProfile name="LOGGING_FILE_JSON">
         <appender name="FILE_JSON" class="ch.qos.logback.core.rolling.RollingFileAppender">
@@ -112,7 +96,8 @@
                             "type":"service",
                             "pid":"#asLong{${PID}}",
                             "hostname":"${HOSTNAME}",
-                            "requested_uri":"%mdc{req.requestURI}%replace(?%mdc{req.queryString}){'^[?]$',''}",
+                            "requested_uri":"%mdc{req.requestURI}",
+                            "query_string":"%mdc{req.queryString}",
                             "traceId":"%mdc{traceId}",
                             "spanId":"%mdc{spanId}",
                             "parentId":"%mdc{parentId}",
@@ -140,9 +125,6 @@
         </springProfile>
         <springProfile name="LOGGING_CONSOLE_JSON">
             <appender-ref ref="CONSOLE_JSON"/>
-        </springProfile>
-        <springProfile name="LOGGING_FILE">
-            <appender-ref ref="FILE"/>
         </springProfile>
         <springProfile name="LOGGING_FILE_JSON">
             <appender-ref ref="FILE_JSON"/>

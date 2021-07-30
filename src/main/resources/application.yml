@@ -49,6 +49,9 @@ spring:
   profiles:
     group:
       default: LOGGING_CONSOLE
+      production: LOGGING_CONSOLE_JSON
+  config:
+    import: optional:classpath:security.yml
   messages:
     use-code-as-default-message: true
   application:

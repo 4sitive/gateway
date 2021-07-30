@@ -22,7 +22,7 @@
                 <remoteHost/>
                 <remoteUser/>
                 <contentLength/>
-                <accessMessage/>
+                <requestedUri/>
                 <requestHeaders>
                     <fieldName>request_headers</fieldName>
                 </requestHeaders>
@@ -39,42 +39,24 @@
                     <omitEmptyFields>true</omitEmptyFields>
                     <pattern>
                         {
+                        "message":"%h %l %u [%t] \"%r\" %s %b \"%i{Referer}\" \"%i{User-Agent}\" \"%reqParameter{q}\"",
                         "type":"access",
                         "pid":"#asLong{${PID}}",
                         "hostname":"${HOSTNAME}",
-                        "requested_uri":"%requestURI%queryString",
+                        "query_string":"%queryString",
                         "logId":"%replace(%responseHeader{logId}){'null',''}",
                         "traceId":"%replace(%responseHeader{traceId}){'null',''}",
                         "spanId":"%replace(%responseHeader{spanId}){'null',''}",
                         "parentId":"%replace(%responseHeader{parentId}){'null',''}",
                         "thread_name":"%threadName",
-                        "request_content":"#tryJson{%requestContent}",
-                        "response_content":"#tryJson{%responseContent}"
+                        "request_content":"%.-2048requestContent",
+                        "response_content":"%.-2048responseContent"
                         }
                     </pattern>
                 </pattern>
             </providers>
         </encoder>
     </appender>
-
-    <if condition="isDefined(&quot;LOGGING_FILE&quot;)">
-        <then>
-            <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-                <encoder>
-                    <pattern>combined</pattern>
-                    <charset>${FILE_LOG_CHARSET}</charset>
-                </encoder>
-                <file>${LOG_FILE}.access.log</file>
-                <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
-                    <fileNamePattern>${LOG_FILE}.access.log.%d{yyyy-MM-dd_HH}.%i.gz</fileNamePattern>
-                    <cleanHistoryOnStart>false</cleanHistoryOnStart>
-                    <maxFileSize>1GB</maxFileSize>
-                    <totalSizeCap>0</totalSizeCap>
-                    <maxHistory>0</maxHistory>
-                </rollingPolicy>
-            </appender>
-        </then>
-    </if>
 
     <if condition="isDefined(&quot;LOGGING_FILE_JSON&quot;)">
         <then>
@@ -91,7 +73,7 @@
                         <remoteHost/>
                         <remoteUser/>
                         <contentLength/>
-                        <accessMessage/>
+                        <requestedUri/>
                         <requestHeaders>
                             <fieldName>request_headers</fieldName>
                         </requestHeaders>
@@ -108,10 +90,11 @@
                             <omitEmptyFields>true</omitEmptyFields>
                             <pattern>
                                 {
+                                "message":"%h %l %u [%t] \"%r\" %s %b \"%i{Referer}\" \"%i{User-Agent}\"",
                                 "type":"access",
                                 "pid":"#asLong{${PID}}",
                                 "hostname":"${HOSTNAME}",
-                                "requested_uri":"%requestURI%queryString",
+                                "query_string":"%queryString",
                                 "logId":"%replace(%responseHeader{logId}){'null',''}",
                                 "traceId":"%replace(%responseHeader{traceId}){'null',''}",
                                 "spanId":"%replace(%responseHeader{spanId}){'null',''}",
@@ -145,11 +128,6 @@
         <if condition="isDefined(&quot;LOGGING_CONSOLE_JSON&quot;)">
             <then>
                 <appender-ref ref="CONSOLE_JSON"/>
-            </then>
-        </if>
-        <if condition="isDefined(&quot;LOGGING_FILE&quot;)">
-            <then>
-                <appender-ref ref="FILE"/>
             </then>
         </if>
         <if condition="isDefined(&quot;LOGGING_FILE_JSON&quot;)">

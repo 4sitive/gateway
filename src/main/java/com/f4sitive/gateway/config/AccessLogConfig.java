@@ -2,21 +2,23 @@ package com.f4sitive.gateway.config;
 
 import ch.qos.logback.access.AccessConstants;
 import ch.qos.logback.access.joran.JoranConfigurator;
-import ch.qos.logback.access.pattern.AccessConverter;
 import ch.qos.logback.access.spi.AccessContext;
 import ch.qos.logback.access.spi.AccessEvent;
 import ch.qos.logback.access.spi.ServerAdapter;
-import ch.qos.logback.core.joran.spi.JoranException;
-import io.netty.handler.codec.http.HttpHeaders;
 import lombok.SneakyThrows;
 import org.reactivestreams.Publisher;
-import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.env.Environment;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.core.io.buffer.DataBufferUtils;
 import org.springframework.core.io.buffer.DefaultDataBufferFactory;
-import org.springframework.http.server.reactive.*;
+import org.springframework.http.server.reactive.HttpHandlerDecoratorFactory;
+import org.springframework.http.server.reactive.ServerHttpRequest;
+import org.springframework.http.server.reactive.ServerHttpRequestDecorator;
+import org.springframework.http.server.reactive.ServerHttpResponse;
+import org.springframework.http.server.reactive.ServerHttpResponseDecorator;
+import org.springframework.lang.NonNull;
 import org.springframework.util.ResourceUtils;
 import org.springframework.util.StreamUtils;
 import org.springframework.util.StringUtils;
@@ -31,15 +33,21 @@ import reactor.core.publisher.Mono;
 import reactor.netty.http.server.HttpServerRequest;
 import reactor.netty.http.server.HttpServerResponse;
 
-import java.io.FileNotFoundException;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
-import java.util.*;
+import java.security.Principal;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.TreeMap;
 import java.util.concurrent.TimeUnit;
 
 
 @Configuration(proxyBeanMethods = false)
-public class AccessLogConfig {
+class AccessLogConfig {
     @Bean
     WebFilter contentWebFilter() {
         return new WebFilter() {
@@ -50,38 +58,41 @@ public class AccessLogConfig {
             }
 
             @Override
-            public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
+            @NonNull
+            public Mono<Void> filter(@NonNull ServerWebExchange exchange, @NonNull WebFilterChain chain) {
                 return exchange.getPrincipal()
-                        .map(principal -> Mono.justOrEmpty(Optional.ofNullable(principal.getName())
-                                .map(name -> exchange.getAttributes()
-                                        .put("org.apache.catalina.AccessLog.RemoteUser", name))))
-                        .defaultIfEmpty(Mono.empty())
-                        .flatMap(name -> chain.filter(exchange
+                        .map(Principal::getName)
+                        .<Void>flatMap(name -> {
+                            exchange.getAttributes().put("org.apache.catalina.AccessLog.RemoteUser", name);
+                            return Mono.empty();
+                        })
+                        .switchIfEmpty(chain.filter(exchange
                                 .mutate()
                                 .request(new ServerHttpRequestDecorator(exchange.getRequest()) {
                                     @Override
+                                    @NonNull
                                     public Flux<DataBuffer> getBody() {
-                                        return super.getBody()
-                                                .doOnNext(dataBuffer -> exchange.getAttributes()
-                                                        .put(AccessConstants.LB_INPUT_BUFFER, content(dataBuffer
-                                                                .asByteBuffer()
-                                                                .asReadOnlyBuffer())));
+                                        return super.getBody().doOnNext(dataBuffer -> {
+                                            byte[] content = content(dataBuffer.asByteBuffer().asReadOnlyBuffer());
+                                            exchange.getAttributes().put(AccessConstants.LB_INPUT_BUFFER, content);
+                                        });
                                     }
                                 })
                                 .response(new ServerHttpResponseDecorator(exchange.getResponse()) {
                                     @Override
+                                    @NonNull
                                     public Mono<Void> writeAndFlushWith(
-                                            Publisher<? extends Publisher<? extends DataBuffer>> body) {
-                                        return writeWith(Flux.from(body).flatMapSequential(p -> p));
+                                            @NonNull Publisher<? extends Publisher<? extends DataBuffer>> body) {
+                                        return writeWith(Flux.from(body).flatMapSequential(publisher -> publisher));
                                     }
 
                                     @Override
-                                    public Mono<Void> writeWith(Publisher<? extends DataBuffer> body) {
-                                        return super.writeWith(DataBufferUtils.join(body)
-                                                .doOnNext(dataBuffer -> exchange.getAttributes()
-                                                        .put(AccessConstants.LB_OUTPUT_BUFFER, content(dataBuffer
-                                                                .asByteBuffer()
-                                                                .asReadOnlyBuffer()))));
+                                    @NonNull
+                                    public Mono<Void> writeWith(@NonNull Publisher<? extends DataBuffer> body) {
+                                        return super.writeWith(DataBufferUtils.join(body).doOnNext(dataBuffer -> {
+                                            byte[] content = content(dataBuffer.asByteBuffer().asReadOnlyBuffer());
+                                            exchange.getAttributes().put(AccessConstants.LB_OUTPUT_BUFFER, content);
+                                        }));
                                     }
                                 })
                                 .build()));
@@ -91,10 +102,13 @@ public class AccessLogConfig {
 
     @SneakyThrows
     @Bean
-    HttpHandlerDecoratorFactory httpHandlerDecoratorFactory(ApplicationContext applicationContext) {
+    HttpHandlerDecoratorFactory httpHandlerDecoratorFactory(Environment environment) {
         AccessContext context = new AccessContext();
-        Arrays.stream(applicationContext.getEnvironment().getActiveProfiles())
-                .forEach(profile -> context.putProperty(profile, profile));
+        List<String> profiles = new ArrayList<>(Arrays.asList(environment.getActiveProfiles()));
+        if (profiles.isEmpty()) {
+            profiles.addAll(Arrays.asList(environment.getDefaultProfiles()));
+        }
+        profiles.forEach(profile -> context.putProperty(profile, profile));
         JoranConfigurator configurator = new JoranConfigurator();
         configurator.setContext(context);
         configurator.doConfigure(ResourceUtils.getURL("classpath:logback-access-spring.xml"));
@@ -102,7 +116,8 @@ public class AccessLogConfig {
         return adapted -> {
             WebHandler delegate = new WebHandlerDecorator(((HttpWebHandlerAdapter) adapted).getDelegate()) {
                 @Override
-                public Mono<Void> handle(ServerWebExchange exchange) {
+                @NonNull
+                public Mono<Void> handle(@NonNull ServerWebExchange exchange) {
                     return super.handle(exchange).doFinally(signalType -> {
                         ServerAdapter adapter = reactiveServerAdapter(exchange);
                         AccessEvent event = reactiveAccessEvent(adapter, exchange);
@@ -113,7 +128,11 @@ public class AccessLogConfig {
             };
             HttpWebHandlerAdapter httpHandler = new HttpWebHandlerAdapter(delegate) {
                 @Override
-                protected ServerWebExchange createExchange(ServerHttpRequest request, ServerHttpResponse response) {
+                @NonNull
+                protected ServerWebExchange createExchange(
+                        @NonNull ServerHttpRequest request,
+                        @NonNull ServerHttpResponse response
+                ) {
                     ServerWebExchange exchange = super.createExchange(request, response);
                     exchange.getAttributes().put("elapsed_time", System.nanoTime());
                     return exchange;
@@ -139,8 +158,7 @@ public class AccessLogConfig {
 
             @Override
             public long getRequestTimestamp() {
-                return Optional.ofNullable(exchange.<Long>getAttribute("elapsed_time"))
-                        .map(this::elapsedTime)
+                return Optional.ofNullable(exchange.<Long>getAttribute("elapsed_time")).map(this::elapsedTime)
                         .orElse(-1L);
             }
 
@@ -156,16 +174,9 @@ public class AccessLogConfig {
 
             @Override
             public Map<String, String> buildResponseHeaderMap() {
-                HttpHeaders responseHeaders = ServerHttpResponseDecorator
-                        .<HttpServerResponse>getNativeResponse(exchange.getResponse()).responseHeaders();
-                return responseHeaders.entries()
-                        .stream()
+                return exchange.getResponse().getHeaders().entrySet().stream()
                         .collect(LinkedHashMap::new,
-                                (map, entry) -> {
-                                    String key = entry.getKey();
-                                    String value = String.join(",", new LinkedHashSet<>(responseHeaders.getAll(key)));
-                                    map.put(key, value);
-                                },
+                                (map, entry) -> map.put(entry.getKey(), String.join(",", entry.getValue())),
                                 Map::putAll);
             }
         };
@@ -206,8 +217,8 @@ public class AccessLogConfig {
 
             @Override
             public String getProtocol() {
-                return ServerHttpRequestDecorator
-                        .<HttpServerRequest>getNativeRequest(exchange.getRequest()).version().text();
+                return ServerHttpRequestDecorator.<HttpServerRequest>getNativeRequest(exchange.getRequest())
+                        .version().text();
             }
 
             @Override
@@ -265,13 +276,13 @@ public class AccessLogConfig {
             public long getContentLength() {
                 return Optional.ofNullable(exchange.<byte[]>getAttribute(AccessConstants.LB_OUTPUT_BUFFER))
                         .map(responseContent -> (long) responseContent.length)
-                        .orElseGet(() -> getServerAdapter().getContentLength());
+                        .orElseGet(getServerAdapter()::getContentLength);
             }
 
             @Override
             public int getStatusCode() {
-                return ServerHttpResponseDecorator
-                        .<HttpServerResponse>getNativeResponse(exchange.getResponse()).status().code();
+                return ServerHttpResponseDecorator.<HttpServerResponse>getNativeResponse(exchange.getResponse())
+                        .status().code();
             }
 
             @Override
